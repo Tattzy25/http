@@ -42,6 +42,22 @@ merged_http2/         # Production-oriented UX + backend patterns
 
 You can open either variant directly in a browser.
 
+### Running Tests
+
+To run the test suite:
+
+```bash
+cd backend
+npm install
+npm test
+```
+
+The test suite includes:
+- **HTML smoke tests** - Validates that `index.html` renders correctly with expected content
+- **Unit tests for httpClient.js** - Tests the HTTP client functionality including request handling and health checks
+
+All tests must pass on a clean checkout before deployment.
+
 ### Basic demo (frontend-only)
 
 - Open `http/index.html` in your browser.
