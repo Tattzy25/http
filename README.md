@@ -5,7 +5,7 @@ A frontend-first, no-framework web app for creating, testing, and monitoring con
 This workspace contains two variants:
 
 - `http/` — Onboarding wizard + dashboard (frontend only, simulated tests). Ideal for demos or as a starting point.
-- `http2/` — Streamlined production-oriented UX with a real backend design: connection creation, execution, data mapping, health checks, and Google Sheets logging.
+- `merged_http2/` — Streamlined production-oriented UX with a real backend design: connection creation, execution, data mapping, health checks, and Google Sheets logging.
 
 
 ## Features
@@ -14,7 +14,7 @@ This workspace contains two variants:
 - Connection dashboard with search, filters, sorting, and stats
 - Multiple connection types: HTTP GET/POST, Webhooks, SSE (viewer/stream client)
 - JSONPath-style data mapping editor (visual preview)
-- Simulated testing in `http/` and real HTTP flow design in `http2/`
+- Simulated testing in `http/` and real HTTP flow design in `merged_http2/`
 - Dark/light theme toggle and polished, responsive UI
 
 
@@ -26,7 +26,7 @@ http/                 # Frontend-only wizard/demo
   app.js
   style.css
 
-http2/                # Production-oriented UX + backend patterns
+merged_http2/         # Production-oriented UX + backend patterns
   index.html
   app.js
   style.css
@@ -35,7 +35,6 @@ http2/                # Production-oriented UX + backend patterns
   backend-execute.js              # Example: POST /api/connections/:id/execute
   dataMapper.js                   # Mapping logic (backend/lib)
   httpClient.js                   # HTTP and SSE client (backend/lib)
-  (plus variant files: index (2).html, app (2).js, style (2).css)
 ```
 
 
@@ -51,7 +50,7 @@ You can open either variant directly in a browser.
 
 ### Production-oriented UX
 
-- Open `http2/index.html` in your browser.
+- Open `merged_http2/index.html` in your browser.
 - Click "+ Add Connection" to launch the 3-step wizard: Endpoints → Mapping → Review.
 - Use "Test Source Endpoint" to fetch and preview real JSON (CORS must allow it if hitting external sites from your browser).
 - Mapping rules use JSONPath-like selectors, e.g. `$.user.email`.
@@ -100,7 +99,7 @@ Behavior:
 
 ## Backend (production design)
 
-The production backend is described in `http2/http-backend-setup.md`. It assumes a serverless-friendly Node/JS backend (e.g., Vercel Functions) and keeps API keys secure on the server.
+The production backend is described in `merged_http2/http-backend-setup.md`. It assumes a serverless-friendly Node/JS backend (e.g., Vercel Functions) and keeps API keys secure on the server.
 
 High-level endpoints:
 
@@ -118,7 +117,7 @@ What the backend does:
 - Logs runs to Google Sheets (or your DB of choice)
 - Never exposes API keys to the frontend
 
-Example backend modules (see `http2/`):
+Example backend modules (see `merged_http2/`):
 
 - `backend-create.js` — Validates input, persists connection metadata, logs creation
 - `backend-execute.js` — Calls source, maps data, posts to destination, logs results
