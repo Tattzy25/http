@@ -322,6 +322,12 @@
             <textarea class="form-control" id="connBody" rows="4" placeholder='{ "key": "value" }'></textarea>
           </div>
 
+          <div class="form-group">
+            <label class="form-label">API Base Override (optional)</label>
+            <input type="url" class="form-control" id="connApiBaseOverride" placeholder="https://custom-api.example.com">
+            <small style="color: var(--color-text-secondary); font-size: 11px;">Override global API base for this connection</small>
+          </div>
+
           <div class="modal-footer">
             <button type="button" class="btn btn--secondary" onclick="app.hideConnectionForm()">Cancel</button>
             <button type="submit" class="btn btn--primary">Save Connection</button>

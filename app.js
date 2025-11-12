@@ -15,7 +15,9 @@ const state = {
   isDarkMode: false,
   simulationInterval: null,
   isRealMode: false,
-  _pendingConfirm: null
+  _pendingConfirm: null,
+  apiBaseKey: 'vercel', // Default to Vercel deployment
+  authToken: '' // for secure auth
 };
 
 // Templates Data
@@ -37,7 +39,8 @@ const connectionTypeIcons = {
 const app = {
   // API base configuration (local + domain options)
   apiBases: {
-    local: 'http://localhost:4000',
+    local: 'http://localhost:8000',
+    vercel: 'https://http-r6p3e2qw2-tattzy.vercel.app',
     primary: 'https://api.primary-domain.com', // replace with real domain
     secondary: 'https://api.secondary-domain.com' // replace with real domain
   },
@@ -46,6 +49,7 @@ const app = {
   },
   init() {
     this.loadFromStorage();
+    this.detectEnvironment();
     this.renderTemplates();
     this.updateConnectionsList();
     this.setupEventListeners();
@@ -106,7 +110,8 @@ const app = {
         connections: safeConnections,
         monitoring: state.monitoring,
         isRealMode: state.isRealMode,
-        apiBaseKey: state.apiBaseKey || 'local'
+        apiBaseKey: state.apiBaseKey || 'local',
+        authToken: '' // never persist token for security
       };
       localStorage.setItem('connection_hub_http', JSON.stringify(payload));
     } catch (e) {
@@ -123,6 +128,7 @@ const app = {
       if (data.monitoring) state.monitoring = { ...state.monitoring, ...data.monitoring };
       if (typeof data.isRealMode === 'boolean') state.isRealMode = data.isRealMode;
       if (data.apiBaseKey) state.apiBaseKey = data.apiBaseKey;
+      // authToken not loaded from storage for security
     } catch (e) {
       console.warn('Load failed:', e);
     }
@@ -132,18 +138,31 @@ const app = {
     if (!sel) return;
     sel.value = state.apiBaseKey || 'local';
   },
+  detectEnvironment() {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      state.apiBaseKey = 'local';
+    } else if (hostname.includes('primary')) {
+      state.apiBaseKey = 'primary';
+    } else if (hostname.includes('secondary')) {
+      state.apiBaseKey = 'secondary';
+    } else {
+      state.apiBaseKey = 'primary'; // default
+    }
+  },
   changeApiBase(key) {
     state.apiBaseKey = key;
     this.saveToStorage();
     this.showToast(`API base switched to ${key} (${this.apiBase})`, 'info');
   },
-  async apiFetch(path, options = {}) {
-    const url = `${this.apiBase}${path.startsWith('/') ? path : '/' + path}`;
+  async apiFetch(path, options = {}, connectionOverride = null) {
+    const base = connectionOverride || this.apiBase;
+    const url = `${base}${path.startsWith('/') ? path : '/' + path}`;
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    // Inject auth if available
+    if (state.authToken) headers['Authorization'] = `Bearer ${state.authToken}`;
     try {
-      const res = await fetch(url, {
-        ...options,
-        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
-      });
+      const res = await fetch(url, { ...options, headers });
       const ct = res.headers.get('content-type') || '';
       const body = ct.includes('application/json') ? await res.json() : await res.text();
       if (!res.ok) throw new Error(body && body.error ? body.error : `Request failed (${res.status})`);
@@ -312,6 +331,7 @@ const app = {
       },
       headers: document.getElementById('connHeaders').value,
       body: document.getElementById('connBody').value,
+      apiBaseOverride: document.getElementById('connApiBaseOverride').value || '',
       config: {
         retry: 3,
         timeout: 30000,
@@ -402,6 +422,7 @@ const app = {
       document.getElementById('connCredentials').value = connection.auth.credentials || '';
       document.getElementById('connHeaders').value = connection.headers || '';
       document.getElementById('connBody').value = connection.body || '';
+      document.getElementById('connApiBaseOverride').value = connection.apiBaseOverride || '';
       
       if (connection.type === 'HTTP_POST') {
         document.getElementById('bodyGroup').classList.remove('hidden');
@@ -494,8 +515,19 @@ const app = {
 
   testConnection(id) {
     const resultEl = document.getElementById(`test-result-${id}`);
+    const connection = state.connections.find(c => c.id === id);
+    if (!connection) return;
+
     if (state.isRealMode) {
-      resultEl.innerHTML = '<div class="test-result info">REAL mode: backend test endpoint not wired in this demo.</div>';
+      resultEl.innerHTML = '<div style="margin-top: 12px; color: var(--color-text-secondary);">Testing via backend...</div>';
+      this.apiFetch(`/api/connections/${id}/test`, { method: 'POST' }, connection.apiBaseOverride)
+        .then(result => {
+          const msg = result.source.ok && result.destination.healthy ? '✓ Test successful!' : '✗ Test failed. Check endpoints.';
+          resultEl.innerHTML = `<div class="test-result ${result.source.ok && result.destination.healthy ? 'success' : 'error'}">${msg}</div>`;
+        })
+        .catch(() => {
+          resultEl.innerHTML = '<div class="test-result error">✗ Backend test failed.</div>';
+        });
       return;
     }
     resultEl.innerHTML = '<div style="margin-top: 12px; color: var(--color-text-secondary);">Testing...</div>';

@@ -155,7 +155,6 @@ NODE_ENV=production
 PORT=3001
 ```
 
-
 ## Data mapping guide
 
 Mapping uses simple JSONPath-like selectors on the source JSON to build the destination JSON.
