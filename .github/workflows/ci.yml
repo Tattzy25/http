@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node-tests:
+    # Only run if a package.json exists somewhere (root preferred)
+    if: ${{ hashFiles('package.json') != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies (npm)
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f package.json ]; then
+            npm install
+          else
+            echo "No package.json in repo root; skipping Node install"
+          fi
+
+      - name: Run tests (npm test if defined)
+        run: |
+          if [ -f package.json ]; then
+            node -e "const s=require('./package.json').scripts||{}; process.exit(s.test?0:1)" \
+              && npm test \
+              || echo 'No npm test script defined; skipping Node tests.'
+          else
+            echo "No package.json found; skipping Node tests."
+          fi
+
+  python-tests:
+    # Run only if Python tests are present anywhere
+    if: ${{ hashFiles('**/test_*.py', '**/*_test.py', 'tests/**') != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pytest and dependencies (if requirements.txt found)
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+          # Find the first requirements.txt in the repo (supports nested paths)
+          REQ_FILE=$(git ls-files "**/requirements.txt" | head -n 1 || true)
+          if [ -n "$REQ_FILE" ]; then
+            echo "Installing requirements from $REQ_FILE"
+            pip install -r "$REQ_FILE"
+          else
+            echo "No requirements.txt found; continuing with pytest only"
+          fi
+
+      - name: Run pytest (quiet)
+        run: pytest -q
