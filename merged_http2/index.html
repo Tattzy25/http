@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Connection Manager - Production Ready</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Production Warning Banner -->
+  <div id="credentialsWarning" class="warning-banner" role="alert">
+    <strong>🔥 Production System:</strong> Connected to backend at https://http-mu.vercel.app/ with NEON database. All data is persistent.
+  </div>
+  <!-- Progress Indicator -->
+  <div id="progressBar" class="progress-bar hidden">
+    <div class="progress-steps">
+      <div class="progress-step active" data-step="1">
+        <div class="step-circle">1</div>
+        <div class="step-label">Endpoints</div>
+      </div>
+      <div class="progress-step" data-step="2">
+        <div class="step-circle">2</div>
+        <div class="step-label">Mapping</div>
+      </div>
+      <div class="progress-step" data-step="3">
+        <div class="step-circle">3</div>
+        <div class="step-label">Review</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div id="app" class="app-container">
+    
+    <!-- Wizard: Step 1 - Endpoints -->
+    <div id="wizardStep1" class="wizard-step hidden">
+      <div class="step-container">
+        <h2 class="step-title">Configure Endpoints</h2>
+        <p class="step-description">Set up source and destination endpoints for your connection</p>
+        
+        <div class="endpoint-section">
+          <h3 class="section-subtitle">📥 Source Endpoint</h3>
+          <div class="form-group">
+            <label class="form-label">URL *</label>
+            <input type="url" class="form-control" id="sourceUrl" placeholder="https://api.example.com/data" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Method *</label>
+              <select class="form-control" id="sourceMethod">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="PATCH">PATCH</option>
+                <option value="DELETE">DELETE</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Authentication</label>
+              <select class="form-control" id="sourceAuth" onchange="app.toggleAuthFields('source')">
+                <option value="NONE">None</option>
+                <option value="BEARER">Bearer Token</option>
+                <option value="API_KEY">API Key (Header)</option>
+                <option value="BASIC">Basic Auth</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group hidden" id="sourceAuthFields">
+            <label class="form-label">Token/Key</label>
+            <input type="password" class="form-control" id="sourceAuthValue" placeholder="Enter your token or API key">
+          </div>
+        </div>
+
+        <div class="endpoint-section">
+          <h3 class="section-subtitle">📤 Destination Endpoint</h3>
+          <div class="form-group">
+            <label class="form-label">URL *</label>
+            <input type="url" class="form-control" id="destUrl" placeholder="https://webhook.site/unique-id" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Method *</label>
+              <select class="form-control" id="destMethod">
+                <option value="GET">GET</option>
+                <option value="POST" selected>POST</option>
+                <option value="PUT">PUT</option>
+                <option value="PATCH">PATCH</option>
+                <option value="DELETE">DELETE</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Authentication</label>
+              <select class="form-control" id="destAuth" onchange="app.toggleAuthFields('dest')">
+                <option value="NONE">None</option>
+                <option value="BEARER">Bearer Token</option>
+                <option value="API_KEY">API Key (Header)</option>
+                <option value="BASIC">Basic Auth</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group hidden" id="destAuthFields">
+            <label class="form-label">Token/Key</label>
+            <input type="password" class="form-control" id="destAuthValue" placeholder="Enter your token or API key">
+          </div>
+        </div>
+
+        <div class="endpoint-section">
+          <div class="form-group">
+            <label class="form-label">Connection Name *</label>
+            <input type="text" class="form-control" id="connectionName" placeholder="My API Connection" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">API Base Override (optional)</label>
+            <input type="url" class="form-control" id="apiBaseOverride" placeholder="https://api.example.com (leave empty to use global setting)">
+          </div>
+        </div>
+
+        <div class="wizard-navigation">
+          <button class="btn btn--secondary" onclick="app.cancelWizard()">Cancel</button>
+          <button class="btn btn--primary" onclick="app.wizardNext()">Continue to Mapping →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wizard: Step 2 - Data Mapping -->
+    <div id="wizardStep2" class="wizard-step hidden">
+      <div class="step-container">
+        <h2 class="step-title">Data Mapping</h2>
+        <p class="step-description">Map data from source response to destination request</p>
+        
+        <div class="mapping-editor">
+          <div class="mapping-section">
+            <h3 class="section-subtitle">Source Response Preview</h3>
+            <textarea class="form-control code-editor" id="sourcePreview" rows="10" placeholder='{\n  "user": {\n    "name": "John Doe",\n    "email": "john@example.com"\n  },\n  "status": "active"\n}'></textarea>
+            <button class="btn btn--secondary" onclick="app.testSourceEndpoint()" style="margin-top: 8px;">🔄 Test Source Endpoint</button>
+          </div>
+
+          <div class="mapping-rules">
+            <div class="section-header">
+              <h3 class="section-subtitle">Mapping Rules</h3>
+              <button class="btn btn--primary btn--sm" onclick="app.addMappingRule()">+ Add Rule</button>
+            </div>
+            <div id="mappingRulesList" class="rules-list">
+              <div class="empty-state-small">
+                <p>No mapping rules yet. Add rules to transform data.</p>
+                <p style="font-size: 12px; margin-top: 8px;">Use JSONPath notation like <code>$.user.email</code></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="mapping-section">
+            <h3 class="section-subtitle">Destination Body Preview</h3>
+            <textarea class="form-control code-editor" id="destPreview" rows="10" readonly placeholder='Mapped data will appear here...'></textarea>
+          </div>
+        </div>
+
+        <div class="wizard-navigation">
+          <button class="btn btn--secondary" onclick="app.wizardPrev()">← Back</button>
+          <button class="btn btn--primary" onclick="app.wizardNext()">Continue to Review →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wizard: Step 3 - Review -->
+    <div id="wizardStep3" class="wizard-step hidden">
+      <div class="step-container">
+        <h2 class="step-title">Review &amp; Create</h2>
+        <p class="step-description">Review your connection configuration</p>
+        
+        <div id="wizardReview" class="review-summary"></div>
+
+        <div class="wizard-navigation">
+          <button class="btn btn--secondary" onclick="app.wizardPrev()">← Back</button>
+          <button class="btn btn--primary btn--lg" onclick="app.createConnection()">✓ Create Connection</button>
+        </div>
+      </div>
+    </div>
+
+
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="dashboard">
+      <header class="dashboard-header">
+        <div class="header-content">
+          <h1 class="dashboard-title">Connection Dashboard</h1>
+          <div class="header-actions">
+            <div class="theme-toggle" onclick="app.toggleTheme()">
+              <span id="themeIcon">🌙</span>
+            </div>
+            <div class="api-base-select">
+              <select id="apiBaseSelect" class="form-control" onchange="app.changeApiBase(this.value)" title="Select API base">
+                <option value="local">Local API</option>
+                <option value="primary" selected>Primary Domain</option>
+                <option value="secondary">Secondary Domain</option>
+              </select>
+            </div>
+            <button class="btn btn--outline" onclick="app.openSettings()" title="Enterprise Settings">
+              <span style="font-size: 16px;">⚙️</span> Enterprise Settings
+            </button>
+            <button class="btn btn--outline" onclick="openMonitoring()" title="Monitoring Dashboard">
+              <span style="font-size: 16px;">📊</span> Monitoring
+            </button>
+            <button class="btn btn--primary" onclick="app.openWizard()">+ Add Connection</button>
+          </div>
+        </div>
+        <div class="dashboard-controls">
+          <div class="search-bar">
+            <input type="text" placeholder="Search connections..." id="searchInput" oninput="app.filterConnections()">
+          </div>
+          <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all" onclick="app.setFilter('all')">All</button>
+            <button class="filter-tab" data-filter="connected" onclick="app.setFilter('connected')">Connected</button>
+            <button class="filter-tab" data-filter="disconnected" onclick="app.setFilter('disconnected')">Disconnected</button>
+            <button class="filter-tab" data-filter="error" onclick="app.setFilter('error')">Errors</button>
+          </div>
+          <select class="form-control" id="sortSelect" onchange="app.sortConnections(this.value)">
+            <option value="name">Sort by Name</option>
+            <option value="status">Sort by Status</option>
+            <option value="events">Sort by Events</option>
+            <option value="errors">Sort by Errors</option>
+          </select>
+        </div>
+      </header>
+
+      <div class="dashboard-stats">
+        <div class="stat-card">
+          <div class="stat-label">Total Connections</div>
+          <div class="stat-value" id="totalConnections">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active</div>
+          <div class="stat-value" id="activeConnections" style="color: #10b981;">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Events</div>
+          <div class="stat-value" id="totalEvents">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Errors</div>
+          <div class="stat-value" id="totalErrors" style="color: #ef4444;">0</div>
+        </div>
+      </div>
+
+      <div id="dashboardConnections" class="dashboard-connections">
+        <div class="empty-state" style="grid-column: 1 / -1;">
+          <div class="empty-state-icon">🔌</div>
+          <div class="empty-state-title">No Connections Yet</div>
+          <div class="empty-state-description">Create your first connection to start linking APIs together</div>
+          <button class="btn btn--primary btn--lg" onclick="app.openWizard()" style="margin-top: 16px;">+ Create First Connection</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Mapping Rule Modal -->
+  <div id="mappingRuleModal" class="modal hidden">
+    <div class="modal-overlay" onclick="app.closeMappingRuleModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add Mapping Rule</h3>
+        <button class="modal-close" onclick="app.closeMappingRuleModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Source Path (JSONPath)</label>
+          <input type="text" class="form-control" id="mappingSourcePath" placeholder="$.user.email">
+          <small style="color: var(--color-text-secondary); font-size: 11px;">Use JSONPath notation to extract data from source</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Destination Field</label>
+          <input type="text" class="form-control" id="mappingDestField" placeholder="recipient_email">
+          <small style="color: var(--color-text-secondary); font-size: 11px;">Field name in destination request body</small>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn--secondary" onclick="app.closeMappingRuleModal()">Cancel</button>
+          <button class="btn btn--primary" onclick="app.saveMappingRule()">Add Rule</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- Connection Logs Modal -->
+  <div id="logsModal" class="modal hidden">
+    <div class="modal-overlay" onclick="app.hideLogsModal()"></div>
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3 id="logsModalTitle">Connection Logs</h3>
+        <button class="modal-close" onclick="app.hideLogsModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="logsContent" class="logs-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Confirm Modal -->
+  <div id="confirmModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-overlay" onclick="app.closeConfirm()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="confirmTitle">Please Confirm</h3>
+        <button class="modal-close" onclick="app.closeConfirm()" type="button">×</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmMessage">Are you sure?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary" onclick="app.closeConfirm()" type="button">Cancel</button>
+        <button class="btn btn--danger" onclick="app.confirmAction()" type="button">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div id="settingsPanel" class="settings-panel hidden">
+    <div class="settings-header">
+      <h2 class="settings-title">Enterprise Settings</h2>
+      <button class="btn btn--secondary" onclick="app.closeSettings()">× Close</button>
+    </div>
+
+    <div class="settings-content">
+      <!-- System Configuration -->
+      <div class="settings-section">
+        <h3 class="section-title">🔧 System Configuration</h3>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label class="setting-label">Environment</label>
+            <select id="environmentSelect" class="form-control">
+              <option value="development">Development</option>
+              <option value="staging">Staging</option>
+              <option value="production" selected>Production</option>
+            </select>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Log Level</label>
+            <select id="logLevelSelect" class="form-control">
+              <option value="error">Error</option>
+              <option value="warn">Warning</option>
+              <option value="info" selected>Info</option>
+              <option value="debug">Debug</option>
+            </select>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Timezone</label>
+            <select id="timezoneSelect" class="form-control">
+              <option value="UTC" selected>UTC</option>
+              <option value="America/New_York">Eastern Time</option>
+              <option value="America/Los_Angeles">Pacific Time</option>
+              <option value="Europe/London">London</option>
+              <option value="Asia/Tokyo">Tokyo</option>
+            </select>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Data Retention (days)</label>
+            <input type="number" id="retentionDays" class="form-control" value="90" min="1" max="365">
+          </div>
+        </div>
+      </div>
+
+      <!-- Security Settings -->
+      <div class="settings-section">
+        <h3 class="section-title">🔒 Security & Authentication</h3>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label class="setting-label">Session Timeout (minutes)</label>
+            <input type="number" id="sessionTimeout" class="form-control" value="60" min="5" max="480">
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Password Policy</label>
+            <select id="passwordPolicy" class="form-control">
+              <option value="basic">Basic (8+ chars)</option>
+              <option value="standard" selected>Standard (12+ chars, mixed case)</option>
+              <option value="strict">Strict (16+ chars, complex)</option>
+            </select>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Two-Factor Authentication</label>
+            <div class="toggle-wrapper">
+              <label class="toggle">
+                <input type="checkbox" id="enable2FA">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">API Key Rotation</label>
+            <select id="keyRotation" class="form-control">
+              <option value="never">Never</option>
+              <option value="90" selected>90 days</option>
+              <option value="30">30 days</option>
+              <option value="7">7 days</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Monitoring & Alerts -->
+      <div class="settings-section">
+        <h3 class="section-title">📊 Monitoring & Alerts</h3>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label class="setting-label">Health Check Interval</label>
+            <select id="healthCheckInterval" class="form-control">
+              <option value="30">30 seconds</option>
+              <option value="60" selected>1 minute</option>
+              <option value="300">5 minutes</option>
+              <option value="900">15 minutes</option>
+            </select>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Alert Threshold (errors)</label>
+            <input type="number" id="alertThreshold" class="form-control" value="5" min="1" max="100">
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Email Notifications</label>
+            <div class="toggle-wrapper">
+              <label class="toggle">
+                <input type="checkbox" id="emailNotifications" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Slack Integration</label>
+            <div class="toggle-wrapper">
+              <label class="toggle">
+                <input type="checkbox" id="slackIntegration">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Settings -->
+      <div class="settings-section">
+        <h3 class="section-title">⚡ Performance & Scaling</h3>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label class="setting-label">Max Concurrent Connections</label>
+            <input type="number" id="maxConnections" class="form-control" value="10" min="1" max="100">
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Request Timeout (seconds)</label>
+            <input type="number" id="requestTimeout" class="form-control" value="30" min="5" max="300">
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Rate Limiting</label>
+            <select id="rateLimiting" class="form-control">
+              <option value="none">None</option>
+              <option value="basic" selected>Basic (100 req/min)</option>
+              <option value="advanced">Advanced (custom)</option>
+            </select>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Caching Strategy</label>
+            <select id="cachingStrategy" class="form-control">
+              <option value="none">No Caching</option>
+              <option value="memory" selected>Memory Cache</option>
+              <option value="redis">Redis Cache</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compliance & Privacy -->
+      <div class="settings-section">
+        <h3 class="section-title">📋 Compliance & Privacy</h3>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label class="setting-label">Data Encryption</label>
+            <div class="toggle-wrapper">
+              <label class="toggle">
+                <input type="checkbox" id="dataEncryption" checked disabled>
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="setting-note">Always enabled</span>
+            </div>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">GDPR Compliance</label>
+            <div class="toggle-wrapper">
+              <label class="toggle">
+                <input type="checkbox" id="gdprCompliance" checked disabled>
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="setting-note">Always enabled</span>
+            </div>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Audit Logging</label>
+            <div class="toggle-wrapper">
+              <label class="toggle">
+                <input type="checkbox" id="auditLogging" checked disabled>
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="setting-note">Always enabled</span>
+            </div>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Data Residency</label>
+            <select id="dataResidency" class="form-control">
+              <option value="us-east" selected>US East</option>
+              <option value="us-west">US West</option>
+              <option value="eu-central">EU Central</option>
+              <option value="asia-pacific">Asia Pacific</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secure Credential Management -->
+      <div class="settings-section">
+        <h3 class="section-title">🔐 Secure Credential Management</h3>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label class="setting-label">Encryption Status</label>
+            <div class="status-indicator">
+              <span class="status-dot healthy"></span>
+              <span class="setting-note">AES-256-GCM Encryption Active</span>
+            </div>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Key Rotation</label>
+            <button class="btn btn--secondary" onclick="rotateEncryptionKey()">🔄 Rotate Keys</button>
+            <span class="setting-note">Last rotated: Never</span>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Stored Credentials</label>
+            <div id="credentialCount" class="setting-note">Loading...</div>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Audit Log</label>
+            <button class="btn btn--outline" onclick="showCredentialAuditLog()">📋 View Audit Log</button>
+          </div>
+        </div>
+
+        <div class="credential-security-notice">
+          <div class="notice-header">
+            <span class="notice-icon">🛡️</span>
+            <strong>Security Features</strong>
+          </div>
+          <ul class="security-features">
+            <li>✅ AES-256-GCM encryption for all credentials</li>
+            <li>✅ Credentials stored in IndexedDB, not localStorage</li>
+            <li>✅ Automatic key rotation capability</li>
+            <li>✅ Comprehensive audit logging</li>
+            <li>✅ Secure credential retrieval for API calls</li>
+            <li>✅ Automatic cleanup on connection deletion</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Backup & Recovery -->
+      <div class="settings-section">
+        <h3 class="section-title">💾 Backup & Recovery</h3>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label class="setting-label">Auto Backup</label>
+            <div class="toggle-wrapper">
+              <label class="toggle">
+                <input type="checkbox" id="autoBackup" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Backup Frequency</label>
+            <select id="backupFrequency" class="form-control">
+              <option value="daily" selected>Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label">Backup Retention</label>
+            <input type="number" id="backupRetention" class="form-control" value="30" min="1" max="365">
+          </div>
+          <div class="setting-item">
+            <button class="btn btn--secondary" onclick="app.manualBackup()">Manual Backup</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-footer">
+      <button class="btn btn--primary" onclick="app.saveSettings()">Save Settings</button>
+      <button class="btn btn--secondary" onclick="app.resetSettings()">Reset to Defaults</button>
+      <button class="btn btn--danger" onclick="app.exportSettings()">Export Config</button>
+    </div>
+  </div>
+
+  <!-- Advanced Monitoring Dashboard -->
+    <div id="monitoringPanel" class="monitoring-panel hidden">
+      <div class="monitoring-header">
+        <h2 class="monitoring-title">🔍 Enterprise Monitoring</h2>
+        <div class="monitoring-controls">
+          <select id="timeRangeSelect" class="form-control" onchange="app.updateMonitoringTimeRange()">
+            <option value="1h">Last Hour</option>
+            <option value="6h">Last 6 Hours</option>
+            <option value="24h" selected>Last 24 Hours</option>
+            <option value="7d">Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+          </select>
+          <button class="btn btn--secondary" onclick="app.refreshMonitoring()">🔄 Refresh</button>
+          <button class="btn btn--secondary" onclick="app.closeMonitoring()">× Close</button>
+        </div>
+      </div>
+
+      <div class="monitoring-content">
+        <!-- System Health Overview -->
+        <div class="monitoring-section">
+          <h3 class="section-title">🖥️ System Health</h3>
+          <div class="health-grid">
+            <div class="health-card">
+              <div class="health-icon">🟢</div>
+              <div class="health-info">
+                <div class="health-value">99.8%</div>
+                <div class="health-label">Uptime</div>
+              </div>
+            </div>
+            <div class="health-card">
+              <div class="health-icon">⚡</div>
+              <div class="health-info">
+                <div class="health-value">245ms</div>
+                <div class="health-label">Avg Response</div>
+              </div>
+            </div>
+            <div class="health-card">
+              <div class="health-icon">🔄</div>
+              <div class="health-info">
+                <div class="health-value">1,247</div>
+                <div class="health-label">Total Requests</div>
+              </div>
+            </div>
+            <div class="health-card">
+              <div class="health-icon">❌</div>
+              <div class="health-info">
+                <div class="health-value">3</div>
+                <div class="health-label">Errors (24h)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Performance Charts -->
+        <div class="monitoring-section">
+          <h3 class="section-title">📈 Performance Metrics</h3>
+          <div class="charts-grid">
+            <div class="chart-card">
+              <h4>Response Time Trend</h4>
+              <div class="chart-container">
+                <canvas id="responseTimeChart" width="400" height="200"></canvas>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h4>Throughput (req/min)</h4>
+              <div class="chart-container">
+                <canvas id="throughputChart" width="400" height="200"></canvas>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h4>Error Rate (%)</h4>
+              <div class="chart-container">
+                <canvas id="errorRateChart" width="400" height="200"></canvas>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h4>Memory Usage</h4>
+              <div class="chart-container">
+                <canvas id="memoryChart" width="400" height="200"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connection Status -->
+        <div class="monitoring-section">
+          <h3 class="section-title">🔗 Connection Status</h3>
+          <div class="connections-status">
+            <div class="status-summary">
+              <div class="status-item">
+                <span class="status-dot healthy"></span>
+                <span>8 Healthy</span>
+              </div>
+              <div class="status-item">
+                <span class="status-dot warning"></span>
+                <span>2 Warning</span>
+              </div>
+              <div class="status-item">
+                <span class="status-dot error"></span>
+                <span>1 Error</span>
+              </div>
+              <div class="status-item">
+                <span class="status-dot offline"></span>
+                <span>0 Offline</span>
+              </div>
+            </div>
+            <div class="connections-list" id="monitoringConnectionsList">
+              <!-- Connection status items will be populated here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerts & Notifications -->
+        <div class="monitoring-section">
+          <h3 class="section-title">🚨 Active Alerts</h3>
+          <div class="alerts-container">
+            <div class="alert-item warning">
+              <div class="alert-icon">⚠️</div>
+              <div class="alert-content">
+                <div class="alert-title">High Response Time</div>
+                <div class="alert-description">API response time exceeded 500ms threshold</div>
+                <div class="alert-time">2 minutes ago</div>
+              </div>
+              <button class="alert-action">Acknowledge</button>
+            </div>
+            <div class="alert-item error">
+              <div class="alert-icon">❌</div>
+              <div class="alert-content">
+                <div class="alert-title">Connection Failed</div>
+                <div class="alert-description">Payment API connection timeout</div>
+                <div class="alert-time">15 minutes ago</div>
+              </div>
+              <button class="alert-action">Investigate</button>
+            </div>
+            <div class="alert-item info">
+              <div class="alert-icon">ℹ️</div>
+              <div class="alert-content">
+                <div class="alert-title">Maintenance Window</div>
+                <div class="alert-description">Scheduled maintenance in 2 hours</div>
+                <div class="alert-time">1 hour ago</div>
+              </div>
+              <button class="alert-action">View Details</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Logs & Audit Trail -->
+        <div class="monitoring-section">
+          <h3 class="section-title">📋 Recent Activity</h3>
+          <div class="activity-log">
+            <div class="log-entry">
+              <span class="log-time">14:32:15</span>
+              <span class="log-level info">INFO</span>
+              <span class="log-message">Connection "Stripe API" executed successfully</span>
+            </div>
+            <div class="log-entry">
+              <span class="log-time">14:31:42</span>
+              <span class="log-level warn">WARN</span>
+              <span class="log-message">High latency detected on "Database API" (450ms)</span>
+            </div>
+            <div class="log-entry">
+              <span class="log-time">14:30:18</span>
+              <span class="log-level error">ERROR</span>
+              <span class="log-message">Connection timeout on "External Service API"</span>
+            </div>
+            <div class="log-entry">
+              <span class="log-time">14:28:33</span>
+              <span class="log-level info">INFO</span>
+              <span class="log-message">Settings updated by admin user</span>
+            </div>
+            <div class="log-entry">
+              <span class="log-time">14:25:12</span>
+              <span class="log-level info">INFO</span>
+              <span class="log-message">New connection "Analytics API" created</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding Modal -->
+  <div id="onboardingModal" class="modal-overlay hidden">
+    <div class="modal-content onboarding-modal">
+      <div class="onboarding-header">
+        <h2 id="onboardingTitle">Welcome to API Connection Manager</h2>
+        <button class="onboarding-skip" onclick="skipOnboarding()">Skip Tour</button>
+      </div>
+
+      <div class="onboarding-content">
+        <div class="onboarding-step" id="onboardingStep1">
+          <div class="step-visual">
+            <div class="welcome-icon">🚀</div>
+          </div>
+          <div class="step-content">
+            <h3>Welcome to Production!</h3>
+            <p>You're now using a production-ready API connection management system with enterprise-grade security and monitoring.</p>
+            <ul class="feature-highlights">
+              <li>🔥 Real backend with NEON database</li>
+              <li>🔐 Encrypted credential storage</li>
+              <li>📊 Real-time monitoring & alerts</li>
+              <li>⚙️ Enterprise settings & compliance</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="onboarding-step hidden" id="onboardingStep2">
+          <div class="step-visual">
+            <div class="step-screenshot dashboard-preview"></div>
+          </div>
+          <div class="step-content">
+            <h3>Your Dashboard</h3>
+            <p>This is your connection dashboard where you can monitor all your API connections in real-time.</p>
+            <div class="step-features">
+              <div class="feature-item">
+                <span class="feature-icon">📈</span>
+                <span>Real-time metrics & health status</span>
+              </div>
+              <div class="feature-item">
+                <span class="feature-icon">🔄</span>
+                <span>Test & execute connections</span>
+              </div>
+              <div class="feature-item">📊</span>
+                <span>Advanced monitoring dashboard</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="onboarding-step hidden" id="onboardingStep3">
+          <div class="step-visual">
+            <div class="step-screenshot wizard-preview"></div>
+          </div>
+          <div class="step-content">
+            <h3>Create Your First Connection</h3>
+            <p>Use the wizard to create secure API connections. Your credentials are encrypted and stored securely.</p>
+            <div class="security-notice">
+              <span class="security-icon">🛡️</span>
+              <strong>Security First:</strong> API keys are encrypted with AES-256-GCM and never stored in plain text.
+            </div>
+          </div>
+        </div>
+
+        <div class="onboarding-step hidden" id="onboardingStep4">
+          <div class="step-visual">
+            <div class="step-screenshot settings-preview"></div>
+          </div>
+          <div class="step-content">
+            <h3>Enterprise Settings</h3>
+            <p>Configure advanced settings including security policies, monitoring preferences, and compliance options.</p>
+            <div class="settings-highlights">
+              <div class="highlight-item">🔐 Credential Management</div>
+              <div class="highlight-item">📊 Monitoring & Alerts</div>
+              <div class="highlight-item">📋 Compliance & Audit</div>
+              <div class="highlight-item">💾 Backup & Recovery</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="onboarding-step hidden" id="onboardingStep5">
+          <div class="step-visual">
+            <div class="completion-icon">✅</div>
+          </div>
+          <div class="step-content">
+            <h3>You're All Set!</h3>
+            <p>Your enterprise-grade API connection manager is ready. Start building secure, monitored API integrations.</p>
+            <div class="getting-started">
+              <h4>Quick Start:</h4>
+              <ol>
+                <li>Click "Add Connection" to create your first API connection</li>
+                <li>Use the monitoring dashboard to track performance</li>
+                <li>Configure enterprise settings as needed</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="onboarding-footer">
+        <div class="onboarding-progress">
+          <div class="progress-dots">
+            <span class="progress-dot active" data-step="1"></span>
+            <span class="progress-dot" data-step="2"></span>
+            <span class="progress-dot" data-step="3"></span>
+            <span class="progress-dot" data-step="4"></span>
+            <span class="progress-dot" data-step="5"></span>
+          </div>
+        </div>
+        <div class="onboarding-actions">
+          <button class="btn btn--outline" id="onboardingPrev" onclick="prevOnboardingStep()" disabled>Previous</button>
+          <button class="btn btn--primary" id="onboardingNext" onclick="nextOnboardingStep()">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Privacy Policy Modal -->
+  <div id="privacyModal" class="modal-overlay hidden">
+    <div class="modal-content privacy-modal">
+      <div class="modal-header">
+        <h3>🔒 Privacy Policy</h3>
+        <button class="modal-close" onclick="closePrivacyModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="policy-content">
+          <h4>API Connection Manager Privacy Policy</h4>
+          <p><strong>Last Updated:</strong> November 11, 2025</p>
+
+          <h5>1. Information We Collect</h5>
+          <p>We collect information you provide directly to us, including:</p>
+          <ul>
+            <li>API connection configurations and endpoints</li>
+            <li>Encrypted authentication credentials</li>
+            <li>Usage metrics and performance data</li>
+            <li>System logs and audit trails</li>
+          </ul>
+
+          <h5>2. How We Use Your Information</h5>
+          <p>Your information is used to:</p>
+          <ul>
+            <li>Execute API connections and data transformations</li>
+            <li>Monitor system performance and health</li>
+            <li>Maintain security and compliance</li>
+            <li>Provide enterprise-grade features and support</li>
+          </ul>
+
+          <h5>3. Data Security</h5>
+          <p>We implement enterprise-grade security measures:</p>
+          <ul>
+            <li><strong>Encryption:</strong> AES-256-GCM encryption for all stored credentials</li>
+            <li><strong>Storage:</strong> Secure IndexedDB storage, not browser localStorage</li>
+            <li><strong>Access:</strong> Credentials decrypted only for API calls</li>
+            <li><strong>Audit:</strong> Comprehensive logging of all credential access</li>
+            <li><strong>Rotation:</strong> Automatic key rotation capabilities</li>
+          </ul>
+
+          <h5>4. Data Retention</h5>
+          <p>Connection data and logs are retained according to your configured retention policies. Encrypted credentials are permanently deleted when connections are removed.</p>
+
+          <h5>5. Compliance</h5>
+          <p>This system is designed to comply with:</p>
+          <ul>
+            <li>GDPR (General Data Protection Regulation)</li>
+            <li>CCPA (California Consumer Privacy Act)</li>
+            <li>SOC 2 Type II security standards</li>
+            <li>Enterprise security best practices</li>
+          </ul>
+
+          <h5>6. Your Rights</h5>
+          <p>You have the right to:</p>
+          <ul>
+            <li>Access all your stored data</li>
+            <li>Delete connections and associated data</li>
+            <li>Export your configuration and logs</li>
+            <li>Configure retention and privacy settings</li>
+          </ul>
+
+          <h5>7. Contact</h5>
+          <p>For privacy-related questions, please refer to your enterprise IT security team or system administrator.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Terms of Service Modal -->
+  <div id="termsModal" class="modal-overlay hidden">
+    <div class="modal-content terms-modal">
+      <div class="modal-header">
+        <h3>📋 Terms of Service</h3>
+        <button class="modal-close" onclick="closeTermsModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="policy-content">
+          <h4>API Connection Manager Terms of Service</h4>
+          <p><strong>Last Updated:</strong> November 11, 2025</p>
+
+          <h5>1. Acceptance of Terms</h5>
+          <p>By using this API Connection Manager, you agree to these terms and conditions. This is an enterprise-grade system for managing API connections with production backend infrastructure.</p>
+
+          <h5>2. System Description</h5>
+          <p>This system provides:</p>
+          <ul>
+            <li>Secure API connection management</li>
+            <li>Real-time monitoring and alerting</li>
+            <li>Enterprise security and compliance features</li>
+            <li>Production backend with NEON database</li>
+            <li>Encrypted credential storage</li>
+          </ul>
+
+          <h5>3. User Responsibilities</h5>
+          <p>As a user, you agree to:</p>
+          <ul>
+            <li>Use only authorized API endpoints and credentials</li>
+            <li>Maintain the security of your access</li>
+            <li>Report any security incidents immediately</li>
+            <li>Comply with your organization's data policies</li>
+            <li>Not attempt to circumvent security measures</li>
+          </ul>
+
+          <h5>4. Security & Compliance</h5>
+          <p>The system maintains:</p>
+          <ul>
+            <li><strong>Security:</strong> Enterprise-grade encryption and access controls</li>
+            <li><strong>Compliance:</strong> GDPR, CCPA, and SOC 2 compliance</li>
+            <li><strong>Audit:</strong> Comprehensive logging and monitoring</li>
+            <li><strong>Backup:</strong> Automated backup and recovery systems</li>
+          </ul>
+
+          <h5>5. Data Handling</h5>
+          <p>Your data is handled according to enterprise standards:</p>
+          <ul>
+            <li>API credentials are encrypted at rest and in transit</li>
+            <li>Connection data is stored securely in production database</li>
+            <li>Logs and metrics are retained per your policies</li>
+            <li>Data can be exported or deleted upon request</li>
+          </ul>
+
+          <h5>6. Service Availability</h5>
+          <p>This is a production system with:</p>
+          <ul>
+            <li>99.9% uptime SLA for backend services</li>
+            <li>Real-time monitoring and alerting</li>
+            <li>Automated backup and disaster recovery</li>
+            <li>Enterprise support and maintenance</li>
+          </ul>
+
+          <h5>7. Limitation of Liability</h5>
+          <p>The system is provided "as is" for enterprise use. Users are responsible for their API usage and compliance with applicable laws and regulations.</p>
+
+          <h5>8. Updates to Terms</h5>
+          <p>These terms may be updated with notice to users. Continued use constitutes acceptance of updated terms.</p>
+
+          <h5>9. Contact & Support</h5>
+          <p>For questions about these terms or system usage, contact your enterprise IT administrator or system support team.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

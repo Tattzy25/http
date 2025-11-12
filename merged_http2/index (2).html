@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connection Hub - Onboarding Wizard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Progress Indicator -->
+  <div id="progressBar" class="progress-bar hidden">
+    <div class="progress-steps">
+      <div class="progress-step active" data-step="1">
+        <div class="step-circle">1</div>
+        <div class="step-label">Welcome</div>
+      </div>
+      <div class="progress-step" data-step="2">
+        <div class="step-circle">2</div>
+        <div class="step-label">Add Connections</div>
+      </div>
+      <div class="progress-step" data-step="3">
+        <div class="step-circle">3</div>
+        <div class="step-label">Configure</div>
+      </div>
+      <div class="progress-step" data-step="4">
+        <div class="step-circle">4</div>
+        <div class="step-label">Flow</div>
+      </div>
+      <div class="progress-step" data-step="5">
+        <div class="step-circle">5</div>
+        <div class="step-label">Monitoring</div>
+      </div>
+      <div class="progress-step" data-step="6">
+        <div class="step-circle">6</div>
+        <div class="step-label">Review</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div id="app" class="app-container">
+    
+    <!-- Step 1: Welcome -->
+    <div id="step1" class="wizard-step active">
+      <div class="welcome-container">
+        <div class="welcome-icon">🚀</div>
+        <h1 class="welcome-title">Welcome to Connection Hub</h1>
+        <p class="welcome-subtitle">Set up and manage multiple HTTP &amp; SSE connections with ease</p>
+        <div class="welcome-features">
+          <div class="feature-item">
+            <span class="feature-icon">⚡</span>
+            <span>No-code setup</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🎯</span>
+            <span>Real-time monitoring</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🔄</span>
+            <span>Easy management</span>
+          </div>
+        </div>
+        <button class="btn btn--primary btn--lg" onclick="app.nextStep()">Get Started</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Add Connections -->
+    <div id="step2" class="wizard-step">
+      <div class="step-container">
+        <h2 class="step-title">Add Your Connections</h2>
+        <p class="step-description">Add one or more HTTP or SSE connections to get started</p>
+        
+        <div class="templates-section">
+          <h3 class="section-subtitle">Quick Start Templates</h3>
+          <div class="templates-grid" id="templatesList"></div>
+        </div>
+
+        <div class="connections-section">
+          <div class="section-header">
+            <h3 class="section-subtitle">Your Connections</h3>
+            <button class="btn btn--primary" onclick="app.showConnectionForm()">+ Add Connection</button>
+          </div>
+          <div id="connectionsList" class="connections-list"></div>
+        </div>
+
+        <div class="wizard-navigation">
+          <button class="btn btn--secondary" onclick="app.prevStep()">← Back</button>
+          <button class="btn btn--primary" onclick="app.nextStep()" id="step2Next">Continue →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Configure -->
+    <div id="step3" class="wizard-step">
+      <div class="step-container">
+        <h2 class="step-title">Configure Connections</h2>
+        <p class="step-description">Fine-tune settings and test your connections</p>
+        
+        <div id="configureList" class="configure-list"></div>
+
+        <div class="wizard-navigation">
+          <button class="btn btn--secondary" onclick="app.prevStep()">← Back</button>
+          <button class="btn btn--primary" onclick="app.nextStep()">Continue →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Connection Flow -->
+    <div id="step4" class="wizard-step">
+      <div class="step-container">
+        <h2 class="step-title">Connection Flow</h2>
+        <p class="step-description">Define how your connections should interact</p>
+        
+        <div class="flow-types">
+          <div class="flow-option" data-flow="SEQUENTIAL" onclick="app.selectFlow('SEQUENTIAL')">
+            <div class="flow-icon">→</div>
+            <h3>Sequential</h3>
+            <p>Execute connections one after another</p>
+          </div>
+          <div class="flow-option" data-flow="PARALLEL" onclick="app.selectFlow('PARALLEL')">
+            <div class="flow-icon">⇉</div>
+            <h3>Parallel</h3>
+            <p>Execute all connections simultaneously</p>
+          </div>
+          <div class="flow-option" data-flow="CONDITIONAL" onclick="app.selectFlow('CONDITIONAL')">
+            <div class="flow-icon">⚡</div>
+            <h3>Conditional</h3>
+            <p>Execute based on conditions</p>
+          </div>
+        </div>
+
+        <div id="flowVisualization" class="flow-visualization"></div>
+
+        <div class="wizard-navigation">
+          <button class="btn btn--secondary" onclick="app.prevStep()">← Back</button>
+          <button class="btn btn--primary" onclick="app.nextStep()">Continue →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5: Monitoring -->
+    <div id="step5" class="wizard-step">
+      <div class="step-container">
+        <h2 class="step-title">Monitoring Setup</h2>
+        <p class="step-description">Configure how you want to monitor your connections</p>
+        
+        <div class="monitoring-config">
+          <div class="config-group">
+            <label class="form-label">Refresh Interval</label>
+            <select class="form-control" id="refreshInterval">
+              <option value="realtime">Real-time</option>
+              <option value="5000" selected>5 seconds</option>
+              <option value="10000">10 seconds</option>
+              <option value="30000">30 seconds</option>
+            </select>
+          </div>
+          
+          <div class="config-group">
+            <label class="form-label">Enable Notifications</label>
+            <div class="toggle-wrapper">
+              <label class="toggle">
+                <input type="checkbox" id="enableNotifications" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="config-group">
+            <label class="form-label">Log Retention</label>
+            <select class="form-control" id="logRetention">
+              <option value="1">1 day</option>
+              <option value="7" selected>7 days</option>
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="wizard-navigation">
+          <button class="btn btn--secondary" onclick="app.prevStep()">← Back</button>
+          <button class="btn btn--primary" onclick="app.nextStep()">Continue →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 6: Review -->
+    <div id="step6" class="wizard-step">
+      <div class="step-container">
+        <h2 class="step-title">Review &amp; Launch</h2>
+        <p class="step-description">Review your configuration before launching</p>
+        
+        <div id="reviewSummary" class="review-summary"></div>
+
+        <div class="wizard-navigation">
+          <button class="btn btn--secondary" onclick="app.prevStep()">← Back</button>
+          <button class="btn btn--primary btn--lg" onclick="app.launchDashboard()">🚀 Launch Dashboard</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 7: Dashboard -->
+    <div id="dashboard" class="dashboard hidden">
+      <header class="dashboard-header">
+        <div class="header-content">
+          <h1 class="dashboard-title">Connection Dashboard</h1>
+          <div class="header-actions">
+            <div class="theme-toggle" onclick="app.toggleTheme()">
+              <span id="themeIcon">🌙</span>
+            </div>
+            <button class="btn btn--primary" onclick="app.returnToWizard()">+ Add Connection</button>
+          </div>
+        </div>
+        <div class="dashboard-controls">
+          <div class="search-bar">
+            <input type="text" placeholder="Search connections..." id="searchInput" oninput="app.filterConnections()">
+          </div>
+          <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all" onclick="app.setFilter('all')">All</button>
+            <button class="filter-tab" data-filter="connected" onclick="app.setFilter('connected')">Connected</button>
+            <button class="filter-tab" data-filter="disconnected" onclick="app.setFilter('disconnected')">Disconnected</button>
+            <button class="filter-tab" data-filter="error" onclick="app.setFilter('error')">Errors</button>
+          </div>
+          <select class="form-control" id="sortSelect" onchange="app.sortConnections(this.value)">
+            <option value="name">Sort by Name</option>
+            <option value="status">Sort by Status</option>
+            <option value="events">Sort by Events</option>
+            <option value="errors">Sort by Errors</option>
+          </select>
+        </div>
+      </header>
+
+      <div class="dashboard-stats">
+        <div class="stat-card">
+          <div class="stat-label">Total Connections</div>
+          <div class="stat-value" id="totalConnections">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active</div>
+          <div class="stat-value" id="activeConnections" style="color: #10b981;">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Events</div>
+          <div class="stat-value" id="totalEvents">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Errors</div>
+          <div class="stat-value" id="totalErrors" style="color: #ef4444;">0</div>
+        </div>
+      </div>
+
+      <div id="dashboardConnections" class="dashboard-connections"></div>
+    </div>
+
+  </div>
+
+  <!-- Connection Form Modal -->
+  <div id="connectionModal" class="modal hidden">
+    <div class="modal-overlay" onclick="app.hideConnectionForm()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Add Connection</h3>
+        <button class="modal-close" onclick="app.hideConnectionForm()">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="connectionForm" onsubmit="app.saveConnection(event)">
+          <div class="form-group">
+            <label class="form-label">Connection Name *</label>
+            <input type="text" class="form-control" id="connName" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Connection Type *</label>
+            <select class="form-control" id="connType" required>
+              <option value="HTTP_GET">🌐 HTTP GET</option>
+              <option value="HTTP_POST">📤 HTTP POST</option>
+              <option value="SSE">📡 Server-Sent Events (SSE)</option>
+              <option value="WEBHOOK">🔔 Webhook</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">URL/Endpoint *</label>
+            <input type="url" class="form-control" id="connUrl" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Authentication</label>
+            <select class="form-control" id="connAuth">
+              <option value="NONE">None</option>
+              <option value="API_KEY">API Key</option>
+              <option value="BEARER">Bearer Token</option>
+              <option value="BASIC">Basic Auth</option>
+            </select>
+          </div>
+
+          <div class="form-group hidden" id="authCredentials">
+            <label class="form-label">Credentials</label>
+            <input type="text" class="form-control" id="connCredentials" placeholder="Enter your key/token">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Headers (optional)</label>
+            <textarea class="form-control" id="connHeaders" rows="3" placeholder="Content-Type: application/json"></textarea>
+          </div>
+
+          <div class="form-group hidden" id="bodyGroup">
+            <label class="form-label">Request Body</label>
+            <textarea class="form-control" id="connBody" rows="4" placeholder='{ "key": "value" }'></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn--secondary" onclick="app.hideConnectionForm()">Cancel</button>
+            <button type="submit" class="btn btn--primary">Save Connection</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connection Logs Modal -->
+  <div id="logsModal" class="modal hidden">
+    <div class="modal-overlay" onclick="app.hideLogsModal()"></div>
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3 id="logsModalTitle">Connection Logs</h3>
+        <button class="modal-close" onclick="app.hideLogsModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="logsContent" class="logs-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

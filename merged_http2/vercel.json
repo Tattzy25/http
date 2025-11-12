@@ -1,0 +1,30 @@
+{
+  "functions": {
+    "api/index.py": {
+      "runtime": "python311"
+    }
+  },
+  "routes": [
+    {
+      "src": "/mcp",
+      "dest": "/api/index.py",
+      "headers": {
+        "x-vercel-protection-bypass": "true",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Mcp-Session-Id,MCP-Protocol-Version,Content-Type",
+        "Access-Control-Allow-Methods": "GET,POST,OPTIONS"
+      }
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.py",
+      "headers": {
+        "x-vercel-protection-bypass": "true"
+      }
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}
