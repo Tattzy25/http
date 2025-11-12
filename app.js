@@ -13,7 +13,9 @@ const state = {
   searchQuery: '',
   sortBy: 'name',
   isDarkMode: false,
-  simulationInterval: null
+  simulationInterval: null,
+  isRealMode: false,
+  _pendingConfirm: null
 };
 
 // Templates Data
@@ -33,11 +35,23 @@ const connectionTypeIcons = {
 
 // Application Object
 const app = {
+  // API base configuration (local + domain options)
+  apiBases: {
+    local: 'http://localhost:4000',
+    primary: 'https://api.primary-domain.com', // replace with real domain
+    secondary: 'https://api.secondary-domain.com' // replace with real domain
+  },
+  get apiBase() {
+    return state.apiBaseKey ? this.apiBases[state.apiBaseKey] : this.apiBases.local;
+  },
   init() {
+    this.loadFromStorage();
     this.renderTemplates();
     this.updateConnectionsList();
     this.setupEventListeners();
     this.checkTheme();
+    this.updateModeBadge();
+    this.initApiBaseSelect();
   },
 
   checkTheme() {
@@ -56,6 +70,87 @@ const app = {
     const icon = document.getElementById('themeIcon');
     if (icon) {
       icon.textContent = state.isDarkMode ? '☀️' : '🌙';
+    }
+  },
+
+  // Mode toggle & persistence
+  toggleMode() {
+    state.isRealMode = !state.isRealMode;
+    if (state.isRealMode) {
+      // Stop any simulations
+      this.stopSimulation();
+      this.showToast('REAL mode enabled. Simulation disabled. Connect to a backend for live data.', 'info');
+    } else {
+      this.showToast('Simulation mode enabled. Using fake statuses/events.', 'info');
+    }
+    this.updateModeBadge();
+    this.saveToStorage();
+  },
+
+  updateModeBadge() {
+    const badge = document.getElementById('modeBadge');
+    if (badge) {
+      badge.textContent = state.isRealMode ? 'REAL' : 'Simulation';
+      badge.classList.toggle('real', state.isRealMode);
+    }
+  },
+
+  saveToStorage() {
+    try {
+      // Scrub credentials before persisting
+      const safeConnections = state.connections.map(c => ({
+        ...c,
+        auth: c.auth ? { ...c.auth, credentials: '' } : c.auth
+      }));
+      const payload = {
+        connections: safeConnections,
+        monitoring: state.monitoring,
+        isRealMode: state.isRealMode,
+        apiBaseKey: state.apiBaseKey || 'local'
+      };
+      localStorage.setItem('connection_hub_http', JSON.stringify(payload));
+    } catch (e) {
+      console.warn('Persist failed:', e);
+    }
+  },
+
+  loadFromStorage() {
+    try {
+      const raw = localStorage.getItem('connection_hub_http');
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (Array.isArray(data.connections)) state.connections = data.connections;
+      if (data.monitoring) state.monitoring = { ...state.monitoring, ...data.monitoring };
+      if (typeof data.isRealMode === 'boolean') state.isRealMode = data.isRealMode;
+      if (data.apiBaseKey) state.apiBaseKey = data.apiBaseKey;
+    } catch (e) {
+      console.warn('Load failed:', e);
+    }
+  },
+  initApiBaseSelect() {
+    const sel = document.getElementById('apiBaseSelect');
+    if (!sel) return;
+    sel.value = state.apiBaseKey || 'local';
+  },
+  changeApiBase(key) {
+    state.apiBaseKey = key;
+    this.saveToStorage();
+    this.showToast(`API base switched to ${key} (${this.apiBase})`, 'info');
+  },
+  async apiFetch(path, options = {}) {
+    const url = `${this.apiBase}${path.startsWith('/') ? path : '/' + path}`;
+    try {
+      const res = await fetch(url, {
+        ...options,
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
+      });
+      const ct = res.headers.get('content-type') || '';
+      const body = ct.includes('application/json') ? await res.json() : await res.text();
+      if (!res.ok) throw new Error(body && body.error ? body.error : `Request failed (${res.status})`);
+      return body;
+    } catch (e) {
+      this.showToast(`API error: ${e.message}`, 'error');
+      throw e;
     }
   },
 
@@ -245,6 +340,7 @@ const app = {
 
     this.hideConnectionForm();
     this.updateConnectionsList();
+    this.saveToStorage();
     this.showToast(state.editingConnectionId ? 'Connection updated!' : 'Connection added!', 'success');
     state.editingConnectionId = null;
   },
@@ -318,12 +414,29 @@ const app = {
     }
   },
 
+  // Confirm modal helpers
+  openConfirm(message, onConfirm) {
+    state._pendingConfirm = onConfirm;
+    document.getElementById('confirmMessage').textContent = message || 'Are you sure?';
+    document.getElementById('confirmModal').classList.remove('hidden');
+  },
+  closeConfirm() {
+    document.getElementById('confirmModal').classList.add('hidden');
+    state._pendingConfirm = null;
+  },
+  confirmAction() {
+    const fn = state._pendingConfirm;
+    this.closeConfirm();
+    if (typeof fn === 'function') fn();
+  },
+
   deleteConnection(id) {
-    if (confirm('Are you sure you want to delete this connection?')) {
+    this.openConfirm('Delete this connection?', () => {
       state.connections = state.connections.filter(c => c.id !== id);
       this.updateConnectionsList();
+      this.saveToStorage();
       this.showToast('Connection deleted', 'info');
-    }
+    });
   },
 
   getTypeLabel(type) {
@@ -375,13 +488,17 @@ const app = {
     const connection = state.connections.find(c => c.id === id);
     if (connection) {
       connection.config[key] = parseInt(value) || value;
+      this.saveToStorage();
     }
   },
 
   testConnection(id) {
     const resultEl = document.getElementById(`test-result-${id}`);
+    if (state.isRealMode) {
+      resultEl.innerHTML = '<div class="test-result info">REAL mode: backend test endpoint not wired in this demo.</div>';
+      return;
+    }
     resultEl.innerHTML = '<div style="margin-top: 12px; color: var(--color-text-secondary);">Testing...</div>';
-    
     setTimeout(() => {
       const success = Math.random() > 0.3;
       const cssClass = success ? 'success' : 'error';
@@ -480,14 +597,18 @@ const app = {
 
     // Initialize connections
     state.connections.forEach(conn => {
-      conn.status = 'connecting';
-      setTimeout(() => {
-        conn.status = Math.random() > 0.2 ? 'connected' : 'error';
-        if (conn.status === 'connected') {
-          conn.metrics.lastActivity = new Date();
-        }
-        this.renderDashboard();
-      }, Math.random() * 2000 + 500);
+      if (state.isRealMode) {
+        conn.status = 'disconnected';
+      } else {
+        conn.status = 'connecting';
+        setTimeout(() => {
+          conn.status = Math.random() > 0.2 ? 'connected' : 'error';
+          if (conn.status === 'connected') {
+            conn.metrics.lastActivity = new Date();
+          }
+          this.renderDashboard();
+        }, Math.random() * 2000 + 500);
+      }
     });
 
     // Hide wizard, show dashboard
@@ -496,7 +617,7 @@ const app = {
     document.getElementById('dashboard').classList.remove('hidden');
     
     this.renderDashboard();
-    this.startSimulation();
+    if (!state.isRealMode) this.startSimulation();
     this.showToast('Dashboard launched successfully! 🚀', 'success');
   },
 
@@ -644,21 +765,26 @@ const app = {
       connection.status = 'disconnected';
       this.showToast(`${connection.name} disconnected`, 'info');
     } else {
-      connection.status = 'connecting';
-      this.showToast(`${connection.name} connecting...`, 'info');
-      setTimeout(() => {
-        connection.status = Math.random() > 0.2 ? 'connected' : 'error';
-        if (connection.status === 'connected') {
-          connection.metrics.lastActivity = new Date();
-          this.showToast(`${connection.name} connected successfully!`, 'success');
-        } else {
-          this.showToast(`${connection.name} failed to connect`, 'error');
-        }
-        this.renderDashboard();
-      }, 1500);
+      if (state.isRealMode) {
+        this.showToast('REAL mode requires backend connection to toggle status.', 'info');
+      } else {
+        connection.status = 'connecting';
+        this.showToast(`${connection.name} connecting...`, 'info');
+        setTimeout(() => {
+          connection.status = Math.random() > 0.2 ? 'connected' : 'error';
+          if (connection.status === 'connected') {
+            connection.metrics.lastActivity = new Date();
+            this.showToast(`${connection.name} connected successfully!`, 'success');
+          } else {
+            this.showToast(`${connection.name} failed to connect`, 'error');
+          }
+          this.renderDashboard();
+        }, 1500);
+      }
     }
 
     this.renderDashboard();
+    this.saveToStorage();
   },
 
   viewLogs(id) {
@@ -739,6 +865,8 @@ const app = {
       clearInterval(state.simulationInterval);
     }
 
+    if (state.isRealMode) return; // no simulation in REAL mode
+
     state.simulationInterval = setInterval(() => {
       state.connections.forEach(conn => {
         if (conn.status === 'connected') {
@@ -771,6 +899,7 @@ const app = {
       });
       
       this.renderDashboard();
+      this.saveToStorage();
     }, state.monitoring.refreshInterval);
   },
 

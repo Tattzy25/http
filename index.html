@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Credentials Warning Banner -->
+  <div id="credentialsWarning" class="warning-banner" role="alert">
+    <strong>Demo frontend:</strong> don’t paste real API keys or secrets here. Use the backend to store credentials securely.
+  </div>
   <!-- Progress Indicator -->
   <div id="progressBar" class="progress-bar hidden">
     <div class="progress-steps">
@@ -207,6 +211,16 @@
             <div class="theme-toggle" onclick="app.toggleTheme()">
               <span id="themeIcon">🌙</span>
             </div>
+            <div class="mode-toggle">
+              <span id="modeBadge" class="mode-badge" title="Click to toggle mode" onclick="app.toggleMode()">Simulation</span>
+            </div>
+            <div class="api-base-select">
+              <select id="apiBaseSelect" class="form-control" onchange="app.changeApiBase(this.value)" title="Select API base">
+                <option value="local">Local API</option>
+                <option value="primary">Primary Domain</option>
+                <option value="secondary">Secondary Domain</option>
+              </select>
+            </div>
             <button class="btn btn--primary" onclick="app.returnToWizard()">+ Add Connection</button>
           </div>
         </div>
@@ -333,6 +347,24 @@
 
   <!-- Toast Notification -->
   <div id="toast" class="toast hidden"></div>
+
+  <!-- Confirm Modal -->
+  <div id="confirmModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-overlay" onclick="app.closeConfirm()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="confirmTitle">Please Confirm</h3>
+        <button class="modal-close" onclick="app.closeConfirm()" type="button">×</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmMessage">Are you sure?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary" onclick="app.closeConfirm()" type="button">Cancel</button>
+        <button class="btn btn--danger" onclick="app.confirmAction()" type="button">Confirm</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
