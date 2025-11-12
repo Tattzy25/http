@@ -73,6 +73,30 @@ You can run a local backend to enable REAL mode end-to-end:
 1. The backend listens on `http://localhost:4000`.
 1. Point your frontend to use `http://localhost:4000` as the API base (e.g., `/api/connections`). If you're opening the HTML from the filesystem, you may need to allow CORS or run a simple local web server.
 
+### Multiple domain API bases
+
+The frontend now supports selecting different API bases (e.g., local, primary, secondary domains) via a dropdown in the dashboard header.
+
+Configuration:
+
+```json
+// Replace placeholder domains in app.js files
+{
+  "apiBases": {
+    "local": "http://localhost:4000",
+    "primary": "https://api.primary-domain.com",
+    "secondary": "https://api.secondary-domain.com"
+  }
+}
+```
+
+Behavior:
+
+- Selection persists to localStorage.
+- All backend calls go through a helper (`apiFetch`) that prefixes the chosen base.
+- REAL mode should typically pair with a domain base; Simulation can use any.
+- Ensure CORS headers are configured on domain APIs (`Access-Control-Allow-Origin`).
+
 
 ## Backend (production design)
 
